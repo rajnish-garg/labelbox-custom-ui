@@ -66,7 +66,7 @@ export default function LeftPanel({
       // photo id and quality tier both same as original data
       if (
         newDefaultPhotoId === originalDefaultPhotoId &&
-        photoQualityTier === assetData.qualityTier
+        photoQualityTier === originalPhotoQualityTier
       ) {
         setPhotoEdits((prevEdits) => {
           const prevChangeIndex = prevEdits.findIndex(
@@ -111,29 +111,11 @@ export default function LeftPanel({
             ];
           }
         });
-      } else {
-        setPhotoEdits((prevEdits) => {
-          const prevChangeIndex = prevEdits.findIndex(
-            (edit) => edit.listingId === selectedListing.listingId
-          );
-
-          if (prevChangeIndex !== -1) {
-            const copy = Object.assign({}, prevEdits[prevChangeIndex]);
-            delete copy.defaultPhotoId;
-
-            return [
-              ...prevEdits.slice(0, prevChangeIndex),
-              copy,
-              ...prevEdits.slice(prevChangeIndex + 1),
-            ];
-          }
-          return prevEdits;
-        });
       }
     }
 
     // change photo quality tier
-    if (photoQualityTier !== assetData.qualityTier) {
+    if (photoQualityTier !== originalPhotoQualityTier) {
       setPhotoEdits((prevEdits) => {
         const prevChangeIndex = prevEdits.findIndex(
           (edit) => edit.listingId === selectedListing.listingId
@@ -152,6 +134,10 @@ export default function LeftPanel({
             ...prevEdits,
             {
               listingId: selectedListing.listingId,
+              defaultPhotoId:
+                originalDefaultPhotoId ||
+                updatedDefaultPhotoId ||
+                originalDefaultPhotoId,
               photoQualityTier,
             },
           ];

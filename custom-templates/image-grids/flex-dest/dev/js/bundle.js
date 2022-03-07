@@ -7912,16 +7912,17 @@
 	  }));
 	}
 
-	function getUpdateReason(edit, originalPhotoQualityTier) {
+	function getUpdateReason(edit, originalDefaultPhotoId, originalPhotoQualityTier) {
 	  var defaultPhotoId = edit.defaultPhotoId,
 	      photoQualityTier = edit.photoQualityTier;
+	  var defaultPhotoIdChanged = !!defaultPhotoId && defaultPhotoId !== originalDefaultPhotoId;
 	  var photoQualityTierChanged = !!photoQualityTier && photoQualityTier !== originalPhotoQualityTier;
 
 	  if (photoQualityTierChanged && photoQualityTier === 'Remove') {
 	    return 'remove category';
 	  }
 
-	  if (!!defaultPhotoId && photoQualityTierChanged) {
+	  if (defaultPhotoIdChanged && photoQualityTierChanged) {
 	    return 'update photo + quality';
 	  }
 
@@ -7929,30 +7930,29 @@
 	    return 'update quality';
 	  }
 
-	  if (!!defaultPhotoId) {
+	  if (defaultPhotoIdChanged) {
 	    return 'update photo';
 	  }
 
 	  return '';
 	}
 
-	function formatEditDataForSubmission(photoEdits, attribute, originalPhotoQualityTier) {
+	function formatEditDataForSubmission(photoEdits, attribute, originalPhotoQualityTier, gridImages) {
 	  var formatted = photoEdits.map(function (edit) {
 	    var listingId = edit.listingId,
 	        defaultPhotoId = edit.defaultPhotoId,
 	        photoQualityTier = edit.photoQualityTier;
-
-	    var data = _objectSpread2(_objectSpread2(_objectSpread2({
-	      id_listing: listingId,
-	      listing_category: attribute
-	    }, defaultPhotoId ? {
-	      photo_id: defaultPhotoId
-	    } : undefined), photoQualityTier ? {
-	      photo_quality: photoQualityTier
-	    } : undefined), {}, {
-	      update_reason: getUpdateReason(edit, originalPhotoQualityTier)
+	    var listingInfo = gridImages.find(function (listing) {
+	      return listing.listingId === listingId;
 	    });
-
+	    var originalDefaultPhotoId = listingInfo === null || listingInfo === void 0 ? void 0 : listingInfo.photoId;
+	    var data = {
+	      id_listing: listingId,
+	      listing_category: attribute,
+	      photo_id: defaultPhotoId,
+	      photo_quality: photoQualityTier,
+	      update_reason: getUpdateReason(edit, originalDefaultPhotoId, originalPhotoQualityTier)
+	    };
 	    return data;
 	  });
 	  return JSON.stringify(formatted);
@@ -7982,7 +7982,7 @@
 	  var handleSubmit = react.exports.useCallback(function () {
 	    setSelectedListing();
 	    setSelectedImageIdx();
-	    var formattedData = formatEditDataForSubmission(photoEdits, assetData === null || assetData === void 0 ? void 0 : assetData.attribute, assetData === null || assetData === void 0 ? void 0 : assetData.qualityTier);
+	    var formattedData = formatEditDataForSubmission(photoEdits, assetData === null || assetData === void 0 ? void 0 : assetData.attribute, assetData === null || assetData === void 0 ? void 0 : assetData.qualityTier, assetData === null || assetData === void 0 ? void 0 : assetData.gridImages);
 	    Labelbox.setLabelForAsset(formattedData, 'ANY').then(function () {
 	      setPhotoEdits([]);
 	      Labelbox.fetchNextAssetToLabel();
@@ -8069,7 +8069,7 @@
 
 	    if (!!newDefaultPhotoId) {
 	      // photo id and quality tier both same as original data
-	      if (newDefaultPhotoId === originalDefaultPhotoId && photoQualityTier === assetData.qualityTier) {
+	      if (newDefaultPhotoId === originalDefaultPhotoId && photoQualityTier === originalPhotoQualityTier) {
 	        setPhotoEdits(function (prevEdits) {
 	          var prevChangeIndex = prevEdits.findIndex(function (edit) {
 	            return edit.listingId === selectedListing.listingId;
@@ -8104,25 +8104,11 @@
 	            }]);
 	          }
 	        });
-	      } else {
-	        setPhotoEdits(function (prevEdits) {
-	          var prevChangeIndex = prevEdits.findIndex(function (edit) {
-	            return edit.listingId === selectedListing.listingId;
-	          });
-
-	          if (prevChangeIndex !== -1) {
-	            var copy = Object.assign({}, prevEdits[prevChangeIndex]);
-	            delete copy.defaultPhotoId;
-	            return [].concat(_toConsumableArray(prevEdits.slice(0, prevChangeIndex)), [copy], _toConsumableArray(prevEdits.slice(prevChangeIndex + 1)));
-	          }
-
-	          return prevEdits;
-	        });
 	      }
 	    } // change photo quality tier
 
 
-	    if (photoQualityTier !== assetData.qualityTier) {
+	    if (photoQualityTier !== originalPhotoQualityTier) {
 	      setPhotoEdits(function (prevEdits) {
 	        var prevChangeIndex = prevEdits.findIndex(function (edit) {
 	          return edit.listingId === selectedListing.listingId;
@@ -8135,6 +8121,7 @@
 	        } else {
 	          return [].concat(_toConsumableArray(prevEdits), [{
 	            listingId: selectedListing.listingId,
+	            defaultPhotoId: originalDefaultPhotoId || updatedDefaultPhotoId || originalDefaultPhotoId,
 	            photoQualityTier: photoQualityTier
 	          }]);
 	        }
